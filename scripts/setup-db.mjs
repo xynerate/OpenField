@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { uuidMigration } from "./uuid-migration.mjs";
 
 const require = createRequire(import.meta.url);
-const wrangler = require.resolve("wrangler/bin/wrangler.js");
+const wrangler = new URL("../node_modules/wrangler/bin/wrangler.js", import.meta.url).pathname;
 const root = fileURLToPath(new URL("../", import.meta.url));
 const args = process.argv.slice(2);
 const migrate = args.includes("--migrate-uuids");
