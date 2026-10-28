@@ -7,6 +7,8 @@
     "dev": "node scripts/setup-db.mjs && concurrently -n ui,api -c cyan,green \"vite\" \"wrangler dev --port 8787\"",
     "build": "vite build",
     "db:setup": "node scripts/setup-db.mjs",
+    "db:seed": "node scripts/db-sync.mjs seed",
+    "db:export": "node scripts/db-sync.mjs export",
     "test": "node --test tests/*.test.mjs",
     "db:migrate-uuids": "node scripts/setup-db.mjs --migrate-uuids",
     "previews:build": "node scripts/build-previews.mjs build",

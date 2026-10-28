@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { uuidMigration } from "./uuid-migration.mjs";
@@ -39,5 +39,13 @@ if (migration) {
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 } else {
   execute(["--file", "src/server/schema.sql"]);
+}
+const seedPath = new URL("../seed.sql", import.meta.url);
+if (!directory && existsSync(seedPath)) {
+  const count = JSON.parse(execute(["--command", "SELECT COUNT(*) AS count FROM customers", "--json"]))[0]?.results?.[0]?.count ?? 0;
+  if (count === 0) {
+    execute(["--file", "seed.sql"]);
+    console.log("Seeded local database from seed.sql.");
+  }
 }
 console.log("Local database schema is ready (UUID record IDs).");
