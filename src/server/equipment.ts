@@ -28,6 +28,8 @@ const siteFields = z.object({
 });
 const siteSchema = siteFields.extend({ id, customer_id: id, created_at: z.string(), updated_at: z.string() });
 type Site = z.infer<typeof siteSchema>;
+const notArchivedSite = " AND NOT EXISTS (SELECT 1 FROM _meta WHERE key = 'archived_site:' || sites.id)";
+const notArchivedAssetSite = " AND NOT EXISTS (SELECT 1 FROM _meta WHERE key = 'archived_site:' || s.id)";
 const assetFields = z.object({
   site_id: id, name: text.min(1), serial_number: text.min(1),
   manufacturer: text.default(""), model: text.default(""),
@@ -71,7 +73,7 @@ equipmentApp.openapi(createRoute({
 }), async (c) => {
   const { id } = c.req.valid("param");
   if (!await get("SELECT id FROM customers WHERE id = ?", [id])) return c.json({ error: "Customer not found" }, 404);
-  return c.json({ sites: await query<Site>("SELECT * FROM sites WHERE customer_id = ? ORDER BY name, id", [id]) }, 200);
+  return c.json({ sites: await query<Site>(`SELECT * FROM sites WHERE customer_id = ?${notArchivedSite} ORDER BY name, id`, [id]) }, 200);
 });
 
 equipmentApp.openapi(createRoute({
@@ -96,15 +98,28 @@ equipmentApp.openapi(createRoute({
 });
 
 equipmentApp.openapi(createRoute({
+  method: "delete", path: "/api/sites/{id}", request: { params },
+  responses: {
+    200: { description: "Site archived", content: json(z.object({ ok: z.boolean() })) },
+    404: errors[404],
+  },
+}), async (c) => {
+  const { id } = c.req.valid("param");
+  if (!await get("SELECT id FROM sites WHERE id = ?", [id])) return c.json({ error: "Site not found" }, 404);
+  await run("INSERT OR REPLACE INTO _meta (key, value) VALUES (?, datetime('now'))", [`archived_site:${id}`]);
+  return c.json({ ok: true }, 200);
+});
+
+equipmentApp.openapi(createRoute({
   method: "get", path: "/api/customers/{id}/assets", request: { params, query: pagination },
   responses: { 200: { description: "Customer equipment, 50 per page", content: json(z.object({ assets: z.array(assetSchema), total: z.number().int() })) }, ...errors },
 }), async (c) => {
   const { id } = c.req.valid("param");
   const { page, search } = c.req.valid("query");
   if (!await get("SELECT id FROM customers WHERE id = ?", [id])) return c.json({ error: "Customer not found" }, 404);
-  const where = " WHERE a.customer_id = ? AND (a.name LIKE ? OR a.serial_number LIKE ? OR a.model LIKE ?)";
+  const where = ` WHERE a.customer_id = ?${notArchivedAssetSite} AND (a.name LIKE ? OR a.serial_number LIKE ? OR a.model LIKE ?)`;
   const values = [id, ...Array(3).fill(`%${search}%`)];
-  const total = await get<{ n: number }>("SELECT COUNT(*) AS n FROM assets a" + where, values);
+  const total = await get<{ n: number }>("SELECT COUNT(*) AS n FROM assets a JOIN sites s ON s.id = a.site_id" + where, values);
   return c.json({ assets: await query<Asset>(assetSelect + where + " ORDER BY a.name, a.id LIMIT 50 OFFSET ?", [...values, (page - 1) * 50]), total: total!.n }, 200);
 });
 
@@ -115,7 +130,7 @@ equipmentApp.openapi(createRoute({
   const { id } = c.req.valid("param");
   const data = c.req.valid("json");
   if (!await get("SELECT id FROM customers WHERE id = ?", [id])) return c.json({ error: "Customer not found" }, 404);
-  if (!await get("SELECT id FROM sites WHERE id = ? AND customer_id = ?", [data.site_id, id])) return c.json({ error: "Site must belong to this customer" }, 400);
+  if (!await get(`SELECT id FROM sites WHERE id = ? AND customer_id = ?${notArchivedSite}`, [data.site_id, id])) return c.json({ error: "Site must belong to this customer" }, 400);
   const message = invalidDates(data);
   if (message) return c.json({ error: message }, 400);
   try {
@@ -145,7 +160,7 @@ equipmentApp.openapi(createRoute({
   const existing = await get<Asset>(assetSelect + " WHERE a.id = ?", [id]);
   if (!existing) return c.json({ error: "Equipment not found" }, 404);
   const data = c.req.valid("json");
-  if (data.site_id !== undefined && !await get("SELECT id FROM sites WHERE id = ? AND customer_id = ?", [data.site_id, existing.customer_id])) return c.json({ error: "Site must belong to this customer" }, 400);
+  if (data.site_id !== undefined && !await get(`SELECT id FROM sites WHERE id = ? AND customer_id = ?${notArchivedSite}`, [data.site_id, existing.customer_id])) return c.json({ error: "Site must belong to this customer" }, 400);
   const message = invalidDates({ ...existing, ...data });
   if (message) return c.json({ error: message }, 400);
   try {

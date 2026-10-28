@@ -129,7 +129,7 @@ export function CustomerDetail() {
                         <td>{j.service_type_name || "—"}</td>
                         <td>{j.technician_name || "Unassigned"}</td>
                         <td><StatusBadge status={j.status} /></td>
-                        <td class="text-right">${j.price.toFixed(2)}</td>
+                        <td class="text-right">ZAR {j.price.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>

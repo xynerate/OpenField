@@ -54,7 +54,7 @@ export function CreateServiceType({ onClose }: { onClose: () => void }) {
               <input type="number" value={defaultDuration} onInput={(e) => setDefaultDuration(parseInt((e.target as HTMLInputElement).value, 10) || 0)} />
             </div>
             <div class="form-group">
-              <label>Default Price ($)</label>
+              <label>Default Price (ZAR )</label>
               <input type="number" step="0.01" value={defaultPrice} onInput={(e) => setDefaultPrice(parseFloat((e.target as HTMLInputElement).value) || 0)} />
             </div>
             <div class="form-group">

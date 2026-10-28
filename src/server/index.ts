@@ -173,6 +173,7 @@ const JobSchema = z.object({
   customer_last_service_id: z.string().uuid().nullable().optional(),
   customer_last_service_identifier: z.string().nullable().optional(),
   customer_last_service_date: z.string().nullable().optional(),
+  status_changed_at: z.string().nullable().optional(),
   job_notes: z.array(JobNoteSchema).optional(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -304,7 +305,8 @@ app.openapi(listJobs, async (c) => {
   const jobs = await query<z.infer<typeof JobSchema>>(
     `SELECT j.*, c.name as customer_name, c.phone as customer_phone,
        t.name as technician_name, t.color as technician_color,
-       st.name as service_type_name, st.color as service_type_color
+       st.name as service_type_name, st.color as service_type_color,
+       (SELECT value FROM _meta WHERE key = 'job_status_changed_at:' || j.id) as status_changed_at
      FROM jobs j
      LEFT JOIN customers c ON j.customer_id = c.id
      LEFT JOIN technicians t ON j.technician_id = t.id
@@ -339,7 +341,8 @@ app.openapi(getJob, async (c) => {
         WHERE customer_invoices.customer_id = j.customer_id AND customer_invoices.status = 'paid') as customer_lifetime_revenue,
        last_service.id as customer_last_service_id,
        last_service.identifier as customer_last_service_identifier,
-       last_service.scheduled_date as customer_last_service_date
+       last_service.scheduled_date as customer_last_service_date,
+       (SELECT value FROM _meta WHERE key = 'job_status_changed_at:' || j.id) as status_changed_at
      FROM jobs j
      LEFT JOIN customers c ON j.customer_id = c.id
      LEFT JOIN technicians t ON j.technician_id = t.id
@@ -526,6 +529,18 @@ app.openapi(updateJob, async (c) => {
   if (fields.length > 0) {
     fields.push("updated_at = datetime('now')");
     await run(`UPDATE jobs SET ${fields.join(", ")} WHERE id = ?`, [...vals, id]);
+    if (data.status !== undefined && data.status !== existing.status) {
+      await run(
+        "INSERT OR REPLACE INTO _meta (key, value) VALUES (?, datetime('now'))",
+        [`job_status_changed_at:${id}`],
+      );
+      const fromLabel = String(existing.status).replace(/_/g, " ");
+      const toLabel = data.status.replace(/_/g, " ");
+      await run(
+        "INSERT INTO job_notes (job_id, content) VALUES (?, ?)",
+        [id, `Status changed from ${fromLabel} to ${toLabel}`],
+      );
+    }
   }
   return c.json({ ok: true }, 200);
 });
@@ -660,7 +675,8 @@ app.openapi(getCustomer, async (c) => {
   if (!customer) return c.json({ error: "Customer not found" }, 404);
   const jobs = await query<z.infer<typeof JobSchema>>(
     `SELECT j.*, t.name as technician_name, t.color as technician_color,
-       st.name as service_type_name, st.color as service_type_color
+       st.name as service_type_name, st.color as service_type_color,
+       (SELECT value FROM _meta WHERE key = 'job_status_changed_at:' || j.id) as status_changed_at
      FROM jobs j
      LEFT JOIN technicians t ON j.technician_id = t.id
      LEFT JOIN service_types st ON j.service_type_id = st.id
@@ -1013,7 +1029,8 @@ app.openapi(getSchedule, async (c) => {
   const jobs = await query<z.infer<typeof JobSchema>>(
     `SELECT j.*, c.name as customer_name, c.phone as customer_phone,
        t.name as technician_name, t.color as technician_color,
-       st.name as service_type_name, st.color as service_type_color
+       st.name as service_type_name, st.color as service_type_color,
+       (SELECT value FROM _meta WHERE key = 'job_status_changed_at:' || j.id) as status_changed_at
      FROM jobs j
      LEFT JOIN customers c ON j.customer_id = c.id
      LEFT JOIN technicians t ON j.technician_id = t.id
@@ -1283,7 +1300,9 @@ const getInvoice = createRoute({
 app.openapi(getInvoice, async (c) => {
   const { id } = c.req.valid("param");
   const invoice = await get<Record<string, unknown>>(
-    `SELECT i.*, c.name as customer_name, j.identifier as job_identifier
+    `SELECT i.*, c.name as customer_name, c.email as customer_email, c.phone as customer_phone,
+       c.address as customer_address, c.city as customer_city, c.state as customer_state, c.zip as customer_zip,
+       j.identifier as job_identifier, j.address as job_address
      FROM invoices i
      LEFT JOIN customers c ON i.customer_id = c.id
      LEFT JOIN jobs j ON i.job_id = j.id
@@ -1399,6 +1418,81 @@ app.openapi(deleteInvoice, async (c) => {
   const { id } = c.req.valid("param");
   await run("DELETE FROM invoices WHERE id = ?", [id]);
   return c.json({ ok: true }, 200);
+});
+
+const InvoiceTemplateSchema = z.object({
+  logo_url: z.string(),
+  company_details: z.string(),
+  bank_details: z.string(),
+  terms: z.string(),
+}).openapi("InvoiceTemplate");
+
+const getInvoiceTemplate = createRoute({
+  method: "get",
+  path: "/api/invoice-template",
+  responses: {
+    200: { description: "Invoice template settings", content: { "application/json": { schema: InvoiceTemplateSchema } } },
+  },
+});
+
+app.openapi(getInvoiceTemplate, async (c) => {
+  const rows = await query<{ key: string; value: string }>(
+    "SELECT key, value FROM _meta WHERE key IN ('invoice_logo_url', 'invoice_company_details', 'invoice_bank_details', 'invoice_terms')"
+  );
+  const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  return c.json({
+    logo_url: map.invoice_logo_url ?? "",
+    company_details: map.invoice_company_details ?? "Company Name and Address",
+    bank_details: map.invoice_bank_details ?? "",
+    terms: map.invoice_terms ?? "Due on Receipt",
+  }, 200);
+});
+
+const updateInvoiceTemplate = createRoute({
+  method: "put",
+  path: "/api/invoice-template",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            logo_url: z.string().optional(),
+            company_details: z.string().optional(),
+            bank_details: z.string().optional(),
+            terms: z.string().optional(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: { description: "Updated invoice template settings", content: { "application/json": { schema: InvoiceTemplateSchema } } },
+  },
+});
+
+app.openapi(updateInvoiceTemplate, async (c) => {
+  const data = c.req.valid("json");
+  const mapping: Array<[keyof typeof data, string]> = [
+    ["logo_url", "invoice_logo_url"],
+    ["company_details", "invoice_company_details"],
+    ["bank_details", "invoice_bank_details"],
+    ["terms", "invoice_terms"],
+  ];
+  for (const [field, metaKey] of mapping) {
+    if (data[field] !== undefined) {
+      await run("INSERT OR REPLACE INTO _meta (key, value) VALUES (?, ?)", [metaKey, data[field]!]);
+    }
+  }
+  const rows = await query<{ key: string; value: string }>(
+    "SELECT key, value FROM _meta WHERE key IN ('invoice_logo_url', 'invoice_company_details', 'invoice_bank_details', 'invoice_terms')"
+  );
+  const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  return c.json({
+    logo_url: map.invoice_logo_url ?? "",
+    company_details: map.invoice_company_details ?? "Company Name and Address",
+    bank_details: map.invoice_bank_details ?? "",
+    terms: map.invoice_terms ?? "Due on Receipt",
+  }, 200);
 });
 
 // ── Create invoice from job ────────────────────────────────────────

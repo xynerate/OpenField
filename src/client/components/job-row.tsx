@@ -3,6 +3,11 @@ import { StatusBadge } from "./status-badge";
 import { Trash2 } from "lucide-preact";
 import type { Job } from "../types";
 
+function formatTimestamp(ts: string): string {
+  const iso = ts.includes("T") ? ts : ts.replace(" ", "T") + "Z";
+  return new Date(iso).toLocaleString();
+}
+
 export function JobRow({ job }: { job: Job }) {
   const { navigate, deleteJob, isAgent } = useApp();
 
@@ -32,8 +37,17 @@ export function JobRow({ job }: { job: Job }) {
           <span class="text-muted">Unassigned</span>
         )}
       </td>
-      <td><StatusBadge status={job.status} /></td>
-      <td class="text-right">${job.price.toFixed(2)}</td>
+      <td>
+        <div>
+          <StatusBadge status={job.status} />
+          {job.status_changed_at && (
+            <div class="text-muted" style={{ fontSize: 11, marginTop: 2 }}>
+              {formatTimestamp(job.status_changed_at)}
+            </div>
+          )}
+        </div>
+      </td>
+      <td class="text-right">ZAR {job.price.toFixed(2)}</td>
       {isAgent && (
         <td>
           <button

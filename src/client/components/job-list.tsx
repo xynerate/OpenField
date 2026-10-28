@@ -82,7 +82,7 @@ export function JobList() {
                 <JobRow key={job.id} job={job} />
               ))}
             </tbody>
-            <tfoot><tr><td colSpan={7}>This page · {jobs.length} jobs</td><td class="text-right">${jobs.reduce((total, job) => total + job.price, 0).toFixed(2)}</td>{isAgent && <td />}</tr></tfoot>
+            <tfoot><tr><td colSpan={7}>This page · {jobs.length} jobs</td><td class="text-right">ZAR {jobs.reduce((total, job) => total + job.price, 0).toFixed(2)}</td>{isAgent && <td />}</tr></tfoot>
           </table>
         )}
       </div>

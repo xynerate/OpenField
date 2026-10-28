@@ -2,13 +2,17 @@ import { useState } from "preact/hooks";
 import { calendarDate } from "../calendar";
 import { useApp } from "../context";
 import { AssetPicker } from "./asset-picker";
+import { CreateCustomer } from "./create-customer";
 import { EquipmentDialog } from "./equipment-forms";
 import type { Asset, Job } from "../types";
+
+const NEW_CUSTOMER_VALUE = "__new_customer__";
 
 export function CreateJob({ onClose, initialAsset, initialDate, onCreated }: { onClose: () => void; initialAsset?: Asset; initialDate?: string; onCreated?: (job: Job) => void }) {
   const { addJob, customerLookup, technicianLookup, serviceTypes } = useApp();
 
   const [customerId, setCustomerId] = useState(initialAsset ? String(initialAsset.customer_id) : "");
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
   const [assetId, setAssetId] = useState<string | null>(initialAsset?.id ?? null);
   const [technicianId, setTechnicianId] = useState("");
   const [serviceTypeId, setServiceTypeId] = useState("");
@@ -49,14 +53,42 @@ export function CreateJob({ onClose, initialAsset, initialDate, onCreated }: { o
     }
   };
 
+  if (showCreateCustomer) {
+    return (
+      <CreateCustomer
+        onClose={() => setShowCreateCustomer(false)}
+        onCreated={(customer) => {
+          setCustomerId(customer.id);
+          setAssetId(null);
+        }}
+      />
+    );
+  }
+
   return (
     <EquipmentDialog title="New job" onClose={onClose} busy={submitting}>
         <form onSubmit={handleSubmit}>
           <fieldset class="form-grid job-form-fields" disabled={submitting}>
             <div class="form-group">
               <label htmlFor="job-customer">Customer *</label>
-              <select id="job-customer" autoFocus value={customerId} onChange={(e) => { setCustomerId((e.target as HTMLSelectElement).value); setAssetId(null); }} required>
+              <select
+                id="job-customer"
+                autoFocus
+                value={customerId}
+                onChange={(e) => {
+                  const val = (e.target as HTMLSelectElement).value;
+                  if (val === NEW_CUSTOMER_VALUE) {
+                    (e.target as HTMLSelectElement).value = customerId;
+                    setShowCreateCustomer(true);
+                    return;
+                  }
+                  setCustomerId(val);
+                  setAssetId(null);
+                }}
+                required
+              >
                 <option value="">Select customer...</option>
+                <option value={NEW_CUSTOMER_VALUE}>+ New customer...</option>
                 {initialAsset && !customerLookup.some((c) => c.id === initialAsset.customer_id) && <option value={initialAsset.customer_id}>{initialAsset.customer_name}</option>}
                 {customerLookup.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -68,7 +100,7 @@ export function CreateJob({ onClose, initialAsset, initialDate, onCreated }: { o
               <select id="job-service" value={serviceTypeId} onChange={(e) => setServiceTypeId((e.target as HTMLSelectElement).value)}>
                 <option value="">Select service...</option>
                 {serviceTypes.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} (${s.default_price})</option>
+                  <option key={s.id} value={s.id}>{s.name} (ZAR {s.default_price})</option>
                 ))}
               </select>
             </div>

@@ -1,7 +1,9 @@
+import { useState } from "preact/hooks";
 import { StatusBadge } from "./status-badge";
 import { useApp } from "../context";
 import { Pagination } from "./pagination";
-import { Trash2 } from "lucide-preact";
+import { EditInvoiceTemplate } from "./edit-invoice-template";
+import { Trash2, Edit3 } from "lucide-preact";
 
 const STATUSES: { value: string; label: string }[] = [
   { value: "", label: "All" },
@@ -17,11 +19,15 @@ export function InvoiceList() {
     invoices, invoicesPag, setInvoicesPage, invoicesStatusFilter, setInvoicesStatusFilter,
     navigate, deleteInvoice, isAgent,
   } = useApp();
+  const [showEditTemplate, setShowEditTemplate] = useState(false);
 
   return (
     <div class="page">
       <div class="page-header">
         <h1>Invoices</h1>
+        <button class="btn" onClick={() => setShowEditTemplate(true)}>
+          <Edit3 size={14} /> Edit Invoice Format
+        </button>
       </div>
 
       <div class="toolbar">
@@ -68,7 +74,7 @@ export function InvoiceList() {
                       <StatusBadge status={inv.status} />
                     </td>
                     <td class="text-muted">{inv.due_date || "—"}</td>
-                    <td class="text-bold text-right">${inv.total.toFixed(2)}</td>
+                    <td class="text-bold text-right">ZAR {inv.total.toFixed(2)}</td>
                     {isAgent && (
                       <td>
                         <button class="btn-icon danger" onClick={(e) => { e.stopPropagation(); deleteInvoice(inv.id); }}>
@@ -80,12 +86,13 @@ export function InvoiceList() {
                 );
               })}
             </tbody>
-            <tfoot><tr><td colSpan={5}>This page · {invoices.length} invoices</td><td class="text-right">${invoices.reduce((total, invoice) => total + invoice.total, 0).toFixed(2)}</td>{isAgent && <td />}</tr></tfoot>
+            <tfoot><tr><td colSpan={5}>This page · {invoices.length} invoices</td><td class="text-right">ZAR {invoices.reduce((total, invoice) => total + invoice.total, 0).toFixed(2)}</td>{isAgent && <td />}</tr></tfoot>
           </table>
         )}
       </div>
 
       <Pagination pag={invoicesPag} setPage={setInvoicesPage} />
+      {showEditTemplate && <EditInvoiceTemplate onClose={() => setShowEditTemplate(false)} />}
     </div>
   );
 }

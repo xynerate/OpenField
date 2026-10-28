@@ -1,7 +1,7 @@
 import { createContext } from "preact";
 import { useContext } from "preact/hooks";
 import type {
-  Job, Customer, Technician, ServiceType, Material, Invoice, Stats, PaginatedState,
+  Job, Customer, Technician, ServiceType, Material, Invoice, InvoiceTemplate, Stats, PaginatedState,
   CustomerLookup, TechnicianLookup, Priority,
 } from "./types";
 
@@ -54,7 +54,7 @@ export interface AppContextValue {
   setCustomersPage: (page: number) => void;
   customersSearch: string;
   setCustomersSearch: (s: string) => void;
-  addCustomer: (data: Partial<Customer>) => Promise<void>;
+  addCustomer: (data: Partial<Customer>) => Promise<Customer>;
   updateCustomer: (id: string, data: Partial<Customer>) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
   selectedCustomer: Customer | null;
@@ -90,6 +90,8 @@ export interface AppContextValue {
   addInvoice: (data: { customer_id: string; job_id?: string | null; tax_rate?: number; notes?: string; due_date?: string; lines: { description: string; quantity: number; unit_price: number }[] }) => Promise<void>;
   updateInvoice: (id: string, data: Partial<Invoice>) => Promise<void>;
   deleteInvoice: (id: string) => Promise<void>;
+  invoiceTemplate: InvoiceTemplate;
+  updateInvoiceTemplate: (data: Partial<InvoiceTemplate>) => Promise<void>;
 
   // Schedule
   scheduleJobs: Job[];

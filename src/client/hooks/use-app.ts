@@ -2,7 +2,7 @@ import { calendarDate, weekRange } from "../calendar";
 import { useState, useCallback, useEffect } from "preact/hooks";
 import { api } from "../api";
 import type {
-  Job, Customer, Technician, ServiceType, Material, Invoice, Stats, PaginatedState,
+  Job, Customer, Technician, ServiceType, Material, Invoice, InvoiceTemplate, Stats, PaginatedState,
   CustomerLookup, TechnicianLookup, Priority,
 } from "../types";
 import type { AppContextValue } from "../context";
@@ -36,6 +36,12 @@ export function useAppState(isAgent: boolean, navigate: (to: string) => void): A
   const [invoicesPag, setInvoicesPag] = useState<PaginatedState>({ page: 1, limit: 50, total: 0 });
   const [invoicesStatusFilter, setInvoicesStatusFilter] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [invoiceTemplate, setInvoiceTemplate] = useState<InvoiceTemplate>({
+    logo_url: "",
+    company_details: "Company Name and Address",
+    bank_details: "",
+    terms: "Due on Receipt",
+  });
 
   // Schedule
   const [monday, sunday] = weekRange();
@@ -94,6 +100,11 @@ export function useAppState(isAgent: boolean, navigate: (to: string) => void): A
     setInvoicesPag((prev) => ({ ...prev, total: data.total }));
   }, []);
 
+  const fetchInvoiceTemplate = useCallback(async () => {
+    const data = await api<InvoiceTemplate>("GET", "/api/invoice-template");
+    setInvoiceTemplate(data);
+  }, []);
+
   const fetchSchedule = useCallback(async (start: string, end: string) => {
     const data = await api<{ jobs: Job[] }>("GET", `/api/schedule?start=${start}&end=${end}`);
     setScheduleJobs(data.jobs);
@@ -130,6 +141,7 @@ export function useAppState(isAgent: boolean, navigate: (to: string) => void): A
           fetchServiceTypes(),
           fetchMaterials(),
           fetchInvoices(invoicesPag, ""),
+          fetchInvoiceTemplate(),
           fetchSchedule(scheduleStart, scheduleEnd),
           fetchLookups(),
         ]);
@@ -267,9 +279,10 @@ export function useAppState(isAgent: boolean, navigate: (to: string) => void): A
   const setCustomersPage = useCallback((page: number) => setCustomersPag((p) => ({ ...p, page })), []);
 
   const addCustomer = useCallback(async (data: Partial<Customer>) => {
-    await api("POST", "/api/customers", data);
+    const customer = await api<Customer>("POST", "/api/customers", data);
     await fetchCustomers(customersPag, customersSearch);
     await Promise.all([fetchStats(), fetchLookups()]);
+    return customer;
   }, [customersPag, customersSearch, fetchCustomers, fetchStats, fetchLookups]);
 
   const updateCustomer = useCallback(async (id: string, data: Partial<Customer>) => {
@@ -390,6 +403,11 @@ export function useAppState(isAgent: boolean, navigate: (to: string) => void): A
     setSelectedInvoice(res.invoice);
   }, []);
 
+  const updateInvoiceTemplate = useCallback(async (data: Partial<InvoiceTemplate>) => {
+    const updated = await api<InvoiceTemplate>("PUT", "/api/invoice-template", data);
+    setInvoiceTemplate(updated);
+  }, []);
+
   // ── Schedule ──
 
   const setScheduleRange = useCallback((start: string, end: string) => {
@@ -412,6 +430,7 @@ export function useAppState(isAgent: boolean, navigate: (to: string) => void): A
     materials, addMaterial, updateMaterial, deleteMaterial,
     invoices, invoicesPag, setInvoicesPage, invoicesStatusFilter, setInvoicesStatusFilter,
     selectedInvoice, selectInvoice, addInvoice, updateInvoice, deleteInvoice,
+    invoiceTemplate, updateInvoiceTemplate,
     scheduleJobs, scheduleStart, scheduleEnd, setScheduleRange,
     customerLookup, technicianLookup,
     loading, error, setError,

@@ -29,6 +29,15 @@ export function CustomerEquipment({ customerId }: { customerId: string }) {
     return () => { current = false; };
   }, [customerId, page, search, revision]);
   const saved = () => { setSiteForm(null); setAssetForm(false); setRevision((n) => n + 1); };
+  const deleteSite = async (siteId: string) => {
+    setError("");
+    try {
+      await api("DELETE", `/api/sites/${siteId}`);
+      setRevision((n) => n + 1);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
   return <section class="detail-section equipment-section" aria-label="Sites and equipment">
     <div class="equipment-heading"><h3>Sites & equipment</h3><div class="equipment-actions">
       <button class="btn" onClick={() => setSiteForm("new")}>Add site</button>
@@ -43,7 +52,10 @@ export function CustomerEquipment({ customerId }: { customerId: string }) {
         <p class="text-muted">Timezone: {site.timezone}</p>
         {site.access_instructions && <p class="detail-notes"><strong>Access: </strong>{site.access_instructions}</p>}
         {site.safety_notes && <p class="detail-notes"><strong>Safety: </strong>{site.safety_notes}</p>}
-        <button class="btn" onClick={() => setSiteForm(site)}>Edit site</button>
+        <div class="equipment-actions">
+          <button class="btn" onClick={() => setSiteForm(site)}>Edit site</button>
+          <button class="btn btn-delete-site" onClick={() => deleteSite(site.id)}>Delete Site</button>
+        </div>
       </details>)}</div>
       {!loading && !sites.length && <p class="text-muted">Add a site to register equipment at this customer’s location.</p>}
       <label class="form-group equipment-search">Find equipment<input type="search" value={search} placeholder="Name, serial number, or model" onInput={(e) => { setSearch(e.currentTarget.value); setPage(1); }} /></label>

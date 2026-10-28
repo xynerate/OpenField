@@ -8,12 +8,31 @@ import { useConnectivity } from "../hooks/use-connectivity";
 
 const ALL_STATUSES: JobStatus[] = ["scheduled", "confirmed", "in_progress", "completed", "cancelled"];
 
+const ALLOWED_STATUS_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
+  scheduled: ["confirmed", "cancelled"],
+  confirmed: ["scheduled", "in_progress", "cancelled"],
+  in_progress: ["completed", "cancelled"],
+  completed: ["cancelled"],
+  cancelled: [],
+};
+
+export function canTransitionStatus(current: JobStatus, target: JobStatus): boolean {
+  if (current === target) return true;
+  if (target === "cancelled") return true;
+  return (ALLOWED_STATUS_TRANSITIONS[current] || []).includes(target);
+}
+
+function formatTimestamp(ts: string): string {
+  const iso = ts.includes("T") ? ts : ts.replace(" ", "T") + "Z";
+  return new Date(iso).toLocaleString();
+}
+
 export function JobDetail() {
   const {
     selectedJob: job, navigate, updateJob, deleteJob,
     addJobNote, deleteJobNote, technicianLookup, isAgent,
     addChecklistItem, toggleChecklistItem, deleteChecklistItem,
-    addJobMaterial, deleteJobMaterial, materials, createInvoiceFromJob,
+    addJobMaterial, deleteJobMaterial, materials, createInvoiceFromJob, setError,
   } = useApp();
   const { readOnly } = useConnectivity();
   const [noteText, setNoteText] = useState("");
@@ -24,7 +43,10 @@ export function JobDetail() {
 
   if (!job) return null;
 
-  const handleStatusChange = (status: JobStatus) => updateJob(job.id, { status });
+  const handleStatusChange = (status: JobStatus) => {
+    if (status === job.status || !canTransitionStatus(job.status, status)) return;
+    updateJob(job.id, { status }).catch((err) => setError((err as Error).message));
+  };
 
   const handleAddNote = async () => {
     if (!noteText.trim()) return;
@@ -91,7 +113,7 @@ export function JobDetail() {
             <div class="detail-meta-item">
               <DollarSign size={14} />
               <span class="detail-meta-label">Price</span>
-              <span>${job.price.toFixed(2)}</span>
+              <span>ZAR {job.price.toFixed(2)}</span>
             </div>
             {job.service_type_name && (
               <div class="detail-meta-item">
@@ -140,7 +162,7 @@ export function JobDetail() {
                 <span>Last completed service</span>
               </div>
               <div class="customer-context-item">
-                <strong>${(job.customer_lifetime_revenue ?? 0).toFixed(2)}</strong>
+                <strong>ZAR {(job.customer_lifetime_revenue ?? 0).toFixed(2)}</strong>
                 <span>Paid invoice revenue</span>
               </div>
             </div>
@@ -202,8 +224,8 @@ export function JobDetail() {
                       <tr key={jm.id} class="table-row">
                         <td>{jm.material_name || "—"}</td>
                         <td>{jm.quantity} {jm.material_unit}</td>
-                        <td>${jm.unit_cost.toFixed(2)}</td>
-                        <td class="text-bold">${(jm.quantity * jm.unit_cost).toFixed(2)}</td>
+                        <td>ZAR {jm.unit_cost.toFixed(2)}</td>
+                        <td class="text-bold">ZAR {(jm.quantity * jm.unit_cost).toFixed(2)}</td>
                         {isAgent && (
                           <td><button class="btn-icon danger" disabled={readOnly} onClick={() => deleteJobMaterial(jm.id)}><Trash2 size={12} /></button></td>
                         )}
@@ -218,7 +240,7 @@ export function JobDetail() {
                 <select disabled={readOnly} value={materialId} onChange={(e) => setMaterialId((e.target as HTMLSelectElement).value)} style={{ flex: 2 }}>
                   <option value="">Select material...</option>
                   {materials.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name} (${m.unit_cost}/{m.unit})</option>
+                    <option key={m.id} value={m.id}>{m.name} (ZAR {m.unit_cost}/{m.unit})</option>
                   ))}
                 </select>
                 <input type="number" disabled={readOnly} value={materialQty} onInput={(e) => setMaterialQty((e.target as HTMLInputElement).value)} style={{ width: 70 }} min="0.1" step="0.1" />
@@ -253,7 +275,7 @@ export function JobDetail() {
                 <div key={note.id} class="note-item">
                   <div class="note-content">{note.content}</div>
                   <div class="note-meta">
-                    <span>{new Date(note.created_at).toLocaleString()}</span>
+                    <span>{formatTimestamp(note.created_at)}</span>
                     {isAgent && (
                       <button class="btn-icon danger" disabled={readOnly} onClick={() => deleteJobNote(note.id)}>
                         <Trash2 size={12} />
@@ -269,17 +291,25 @@ export function JobDetail() {
         <div class="detail-sidebar">
           <div class="detail-sidebar-section">
             <h4>Status</h4>
+            {job.status_changed_at && (
+              <p class="text-muted" style={{ fontSize: 12, marginBottom: 8 }}>
+                Last changed: {formatTimestamp(job.status_changed_at)}
+              </p>
+            )}
             <div class="status-buttons">
-              {ALL_STATUSES.map((s) => (
-                <button
-                  key={s}
-                  disabled={readOnly}
-                  class={`status-btn ${job.status === s ? "active" : ""}`}
-                  onClick={() => handleStatusChange(s)}
-                >
-                  {s.replace("_", " ")}
-                </button>
-              ))}
+              {ALL_STATUSES.map((s) => {
+                const allowed = canTransitionStatus(job.status, s);
+                return (
+                  <button
+                    key={s}
+                    disabled={readOnly || !allowed}
+                    class={`status-btn ${job.status === s ? "active" : ""}`}
+                    onClick={() => handleStatusChange(s)}
+                  >
+                    {s.replace("_", " ")}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

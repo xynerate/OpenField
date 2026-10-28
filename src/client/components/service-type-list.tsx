@@ -79,7 +79,7 @@ export function ServiceTypeList() {
                       <td class="text-bold">{s.name}</td>
                       <td class="text-muted">{s.description || "—"}</td>
                       <td>{s.default_duration} min</td>
-                      <td>${s.default_price.toFixed(2)}</td>
+                      <td>ZAR {s.default_price.toFixed(2)}</td>
                       <td>
                         <div class="action-btns">
                           <button class="btn-icon" onClick={() => startEdit(s)}><Edit3 size={14} /></button>

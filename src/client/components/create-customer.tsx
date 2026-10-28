@@ -1,8 +1,9 @@
 import { useState } from "preact/hooks";
 import { useApp } from "../context";
 import { X } from "lucide-preact";
+import type { Customer } from "../types";
 
-export function CreateCustomer({ onClose }: { onClose: () => void }) {
+export function CreateCustomer({ onClose, onCreated }: { onClose: () => void; onCreated?: (customer: Customer) => void }) {
   const { addCustomer, setError } = useApp();
 
   const [name, setName] = useState("");
@@ -10,7 +11,7 @@ export function CreateCustomer({ onClose }: { onClose: () => void }) {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
-  const [state, setState] = useState("");
+  const [state, setState] = useState("Western Cape");
   const [zip, setZip] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -20,7 +21,8 @@ export function CreateCustomer({ onClose }: { onClose: () => void }) {
     if (!name.trim()) { setError("Name is required"); return; }
     setSubmitting(true);
     try {
-      await addCustomer({ name: name.trim(), email, phone, address, city, state, zip, notes });
+      const customer = await addCustomer({ name: name.trim(), email, phone, address, city, state, zip, notes });
+      onCreated?.(customer);
       onClose();
     } catch (err) {
       setError((err as Error).message);
@@ -59,7 +61,7 @@ export function CreateCustomer({ onClose }: { onClose: () => void }) {
               <input type="text" value={city} onInput={(e) => setCity((e.target as HTMLInputElement).value)} />
             </div>
             <div class="form-group">
-              <label>State</label>
+              <label>Province</label>
               <input type="text" value={state} onInput={(e) => setState((e.target as HTMLInputElement).value)} />
             </div>
             <div class="form-group">

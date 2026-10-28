@@ -24,7 +24,15 @@ export function SiteForm({ customerId, site, onSaved, onClose }: { customerId: s
       onSaved();
     } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   };
-  return <EquipmentDialog title={site ? "Edit site" : "Add site"} onClose={onClose}>
+  const remove = async () => {
+    if (!site) return;
+    setBusy(true); setError("");
+    try {
+      await api("DELETE", `/api/sites/${site.id}`);
+      onSaved();
+    } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
+  };
+  return <EquipmentDialog title={site ? "Edit site" : "Add site"} onClose={onClose} busy={busy}>
     <form onSubmit={submit}>
       <div class="form-grid">
         <label class="form-group full-width">Site name *<input name="name" defaultValue={site?.name} required maxLength={500} autoFocus /></label>
@@ -37,7 +45,11 @@ export function SiteForm({ customerId, site, onSaved, onClose }: { customerId: s
         <label class="form-group full-width">Safety notes<textarea name="safety_notes" defaultValue={site?.safety_notes} rows={3} maxLength={5000} /></label>
         {error && <p class="equipment-error full-width" role="alert">{error}</p>}
       </div>
-      <div class="modal-footer"><button type="button" class="btn" onClick={onClose} disabled={busy}>Cancel</button><button class="btn btn-primary" disabled={busy}>{busy ? "Saving…" : "Save site"}</button></div>
+      <div class="modal-footer">
+        {site && <button type="button" class="btn btn-delete-site" style={{ marginRight: "auto" }} onClick={remove} disabled={busy}>Delete Site</button>}
+        <button type="button" class="btn" onClick={onClose} disabled={busy}>Cancel</button>
+        <button class="btn btn-primary" disabled={busy}>{busy ? "Saving…" : "Save site"}</button>
+      </div>
     </form>
   </EquipmentDialog>;
 }

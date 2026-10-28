@@ -65,7 +65,7 @@ export function Dashboard() {
             <DollarSign size={20} />
           </div>
           <div class="stat-info">
-            <div class="stat-value">${stats.revenue.toLocaleString()}</div>
+            <div class="stat-value">ZAR {stats.revenue.toLocaleString()}</div>
             <div class="stat-label">Revenue</div>
           </div>
         </div>

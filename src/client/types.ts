@@ -34,6 +34,7 @@ export interface Job {
   customer_last_service_id?: string | null;
   customer_last_service_identifier?: string | null;
   customer_last_service_date?: string | null;
+  status_changed_at?: string | null;
   job_notes?: JobNote[];
   checklist?: ChecklistItem[];
   job_materials?: JobMaterial[];
@@ -125,7 +126,14 @@ export interface Invoice {
   due_date: string;
   paid_date: string;
   customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  customer_address?: string;
+  customer_city?: string;
+  customer_state?: string;
+  customer_zip?: string;
   job_identifier?: string;
+  job_address?: string;
   lines?: InvoiceLine[];
   created_at: string;
   updated_at: string;
@@ -138,6 +146,13 @@ export interface InvoiceLine {
   quantity: number;
   unit_price: number;
   total: number;
+}
+
+export interface InvoiceTemplate {
+  logo_url: string;
+  company_details: string;
+  bank_details: string;
+  terms: string;
 }
 
 export interface Stats {

@@ -88,7 +88,7 @@ export function MaterialList() {
                     <>
                       <td class="text-bold">{m.name}</td>
                       <td class="text-muted">{m.unit}</td>
-                      <td>${m.unit_cost.toFixed(2)}</td>
+                      <td>ZAR {m.unit_cost.toFixed(2)}</td>
                       <td>{m.in_stock}</td>
                       <td>
                         <div class="action-btns">
