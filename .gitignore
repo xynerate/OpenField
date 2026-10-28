@@ -8,3 +8,8 @@ docs/
 .wrangler/
 
 .preview-build/
+.DS_Store
+.env
+.env.*
+.dev.vars
+*.patch
