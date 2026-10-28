@@ -48,3 +48,27 @@ When customizing for a specific business vertical:
 **Dashboard** — adjust KPI labels if needed (e.g. "Treatments today" instead of "Jobs today").
 
 **Priority levels** — the default priorities (low, normal, high, urgent) work for most verticals. Only change if the business uses different terminology.
+
+## Current Project State & Handoff Context (South Africa / MTRSERVICES)
+
+This project has been customized for a South African field service operation (**MTRSERVICES**):
+
+1. **South African Localization**:
+   - Currency is formatted in South African Rand (`R` / `ZAR`) across the dashboard, jobs, materials, service types, and invoices.
+   - Customer forms use **Province** (defaulting to `Western Cape`) and **Postal Code** instead of US State/Zip.
+   - Customer site creation defaults to the `Africa/Johannesburg` (`SAST`) timezone and provides a dropdown of South African/Southern African IANA timezones.
+
+2. **Customer & Equipment Management**:
+   - Full CRUD support (create, edit, archive, delete) for customer **Sites** and **Assets/Equipment** in `src/server/equipment.ts`, `src/client/components/customer-equipment.tsx`, and `src/client/components/equipment-forms.tsx`.
+   - Customer details (`src/client/components/customer-detail.tsx`) can be edited inline.
+
+3. **A4 Printable & Editable Invoice Template**:
+   - Invoices (`src/client/components/invoice-detail.tsx` & `src/client/styles.css`) are styled as an **A4 portrait sheet** (`210mm × 297mm`) with `@media print` and `@page { size: A4 portrait; margin: 0; }` rules, plus a **Print A4** button.
+   - `Sub Total`, `Total`, `Balance Due`, and `Bank Details` are wrapped in `.invoice-bottom-anchor` (`margin-top: auto`) so they remain anchored at the bottom of the A4 page right above the top edge of the footer rule, leaving open space above for multiple line items.
+   - **Editable Invoice Format** (`src/client/components/edit-invoice-template.tsx` and `GET/PUT /api/invoice-template` in `src/server/index.ts`): Users can upload/change the company logo (stored as a Data URI or URL in `_meta.invoice_logo`), edit company name/address (`_meta.invoice_company_name`, `_meta.invoice_company_address`), payment terms (`_meta.invoice_terms`), and banking details (`_meta.invoice_bank_details`).
+
+4. **Database Sync Across Machines (`seed.sql`)**:
+   - Local D1 database state (including customers, jobs, invoices, and `_meta` settings like logo and banking details) is exported to `seed.sql` using idempotent `INSERT OR REPLACE INTO` statements.
+   - Running `npm run dev` or `npm run db:setup` (`scripts/setup-db.mjs`) automatically seeds from `seed.sql` when the local database is empty.
+   - Run `npm run db:export` before committing/pushing to save any new database/logo/banking changes into `seed.sql`.
+   - Run `npm run db:seed` after pulling on another machine to apply updated `seed.sql` data into an existing local database.
